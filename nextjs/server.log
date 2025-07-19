@@ -1,0 +1,69 @@
+
+> sasstemplate@0.1.0 dev
+> next dev
+
+ ⚠ Warning: Found multiple lockfiles. Selecting /Users/caseymeehan/Documents/base/work/other/code/SaaS Template Test 3/package-lock.json.
+   Consider removing the lockfiles at:
+   * /Users/caseymeehan/Documents/base/work/other/code/SaaS Template Test 3/nextjs/package-lock.json
+
+   ▲ Next.js 15.4.1
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.37:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1118ms
+ ✓ Compiled /middleware in 138ms (180 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 919ms (865 modules)
+ HEAD / 200 in 1147ms
+ ✓ Compiled in 67ms (336 modules)
+ GET / 200 in 42ms
+ HEAD / 200 in 34ms
+ GET / 200 in 44ms
+ ✓ Compiled /favicon.ico in 117ms (546 modules)
+ GET /favicon.ico 200 in 178ms
+ ⚠ Cross origin request detected from 127.0.0.1 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ GET /favicon.ico 200 in 10ms
+ ✓ Compiled /auth/login in 167ms (883 modules)
+ GET /auth/login 200 in 220ms
+ ○ Compiling /app ...
+ ✓ Compiled /app in 1354ms (1970 modules)
+ GET /app 200 in 1416ms
+ GET /favicon.ico 200 in 12ms
+ ✓ Compiled /app/user-settings in 450ms (1991 modules)
+ GET /app/user-settings 200 in 511ms
+ ✓ Compiled /app/organisation-settings in 450ms (2026 modules)
+ GET /app/organisation-settings 200 in 503ms
+ GET /app/organisation-settings 200 in 136ms
+ GET /favicon.ico 200 in 16ms
+ GET /favicon.ico 200 in 4ms
+ GET /app 200 in 29ms
+ ✓ Compiled /app/example in 279ms (2043 modules)
+ GET /app/example 200 in 325ms
+ GET /app/organisation-settings 200 in 26ms
+ GET /app/user-settings 200 in 30ms
+ GET /app/user-settings 200 in 130ms
+ GET /favicon.ico 200 in 9ms
+ GET /favicon.ico 200 in 3ms
+ ○ Compiling /api/customer-portal ...
+ ✓ Compiled /api/customer-portal in 905ms (2843 modules)
+Error creating customer portal session: Error: Authentication header included, but incorrectly formatted.
+    at Generator.next (<anonymous>) {
+  type: 'request_error',
+  code: 'authentication_malformed',
+  detail: 'Authentication header included, but incorrectly formatted.',
+  documentationUrl: 'https://developer.paddle.com/v1/errors/shared/authentication_malformed',
+  errors: null
+}
+ GET /api/customer-portal?orgId=1 500 in 1307ms
+Error creating customer portal session: Error: Authentication header included, but incorrectly formatted.
+    at Generator.next (<anonymous>) {
+  type: 'request_error',
+  code: 'authentication_malformed',
+  detail: 'Authentication header included, but incorrectly formatted.',
+  documentationUrl: 'https://developer.paddle.com/v1/errors/shared/authentication_malformed',
+  errors: null
+}
+ GET /api/customer-portal?orgId=1 500 in 203ms
