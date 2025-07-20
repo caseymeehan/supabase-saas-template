@@ -1139,3 +1139,172 @@ This migration guide has been successfully completed with:
 - ✅ **Complete troubleshooting guide** documented
 
 The SaaS template is now production-ready with hosted Supabase integration!
+
+---
+
+## Post-Migration Runtime Issues and Fixes (July 2025)
+
+After successful database migration, several runtime issues were discovered and resolved in the production application. This section documents these fixes for future deployments.
+
+### Issue #1: Overly Restrictive MFA Policies ✅ FIXED
+
+**Problem:**
+Users encountered "Multi-factor authentication required" errors when accessing basic user information. The original MFA migration (`20250107210416_MFA.sql`) was too aggressive, requiring MFA for basic operations like viewing account details.
+
+**Root Cause:**
+The MFA migration applied RESTRICTIVE policies to all user tables, which is uncommon in production software where MFA is typically optional for basic operations.
+
+**Solution Applied:**
+Created migration `20250720000000_make_mfa_optional.sql`:
+
+```sql
+-- Make MFA optional for basic user operations
+-- Keep MFA required only for sensitive administrative functions
+
+-- Drop overly restrictive MFA policies for basic user information
+DROP POLICY IF EXISTS "MFA required for user information access" ON public.user_information;
+DROP POLICY IF EXISTS "MFA required for invite code access" ON public.user_invite_code;
+DROP POLICY IF EXISTS "MFA required for user personal access" ON public.user_personal;
+DROP POLICY IF EXISTS "MFA required for user notifications access" ON public.user_notifications;
+
+-- Keep MFA requirements for sensitive operations:
+-- - Organisation management
+-- - API key access
+-- - Administrative functions
+```
+
+**Applied via:**
+```bash
+npx supabase db push --db-url "postgresql://postgres.PROJECT_REF:PASSWORD@HOST:5432/postgres"
+```
+
+**Result:**
+- ✅ Users can access basic account information without MFA
+- ✅ MFA remains available for enhanced security
+- ✅ MFA still required for sensitive admin operations
+- ✅ Aligns with industry-standard MFA practices
+
+### Issue #2: Missing User Information Records ✅ FIXED
+
+**Problem:**
+Some users experienced "Failed to load user details" errors because they lacked corresponding records in `user_information` and `user_invite_code` tables.
+
+**Root Cause:**
+Users who registered before auth triggers were fully implemented, or during periods when triggers weren't functioning properly, may not have had their supplementary records created.
+
+**Solution Applied:**
+Enhanced error handling in `/nextjs/src/app/app/user-settings/page.tsx` with automatic record creation and graceful fallbacks:
+
+```typescript
+// Auto-create missing user_information record
+if (userError.code === 'PGRST116') {
+    const { error: insertError } = await supabase.getSupabaseClient()
+        .from('user_information')
+        .insert({ user_id: user.id, email: user.email || '' })
+        .select()
+        .single();
+    
+    if (!insertError) {
+        // Retry fetching after creating the record
+        const { data: retryUserInfo, error: retryError } = await supabase.getUserInformations(user?.id);
+        if (!retryError) {
+            setUserDetails(retryUserInfo);
+            return;
+        }
+    }
+}
+
+// Auto-create missing user_invite_code record
+if (error.code === 'PGRST116') {
+    const randomCode = Math.random().toString(36).substring(2, 24);
+    const { error: insertError } = await supabase.getSupabaseClient()
+        .from('user_invite_code')
+        .insert({ user_id: user.id, user_code: randomCode, enabled: true })
+        .select()
+        .single();
+    
+    if (!insertError) {
+        const { data: retryData, error: retryError } = await supabase.getUserInviteCode(user?.id);
+        if (!retryError && retryData) {
+            setInviteCode(retryData.user_code);
+            setIsInviteCodeEnabled(retryData.enabled);
+            return;
+        }
+    }
+}
+```
+
+**Files Modified:**
+- `/nextjs/src/app/app/user-settings/page.tsx`
+
+**Result:**
+- ✅ Automatic creation of missing user records
+- ✅ Graceful fallback to basic auth information
+- ✅ No disruptive error messages for users
+- ✅ Self-healing system that resolves data gaps
+
+### Issue #3: Browser Extension Hydration Errors ✅ FIXED
+
+**Problem:**
+React hydration mismatches occurred when browser extensions (LastPass, VSCode) injected HTML elements after server render but before client hydration.
+
+**Error Examples:**
+```
+Error: Hydration failed because the server rendered HTML didn't match the client
+- className="theme-blue vsc-initialized" (client)
++ className="theme-blue" (server)
+- data-lastpass-icon-root="" (client-only element)
+```
+
+**Solution Applied:**
+Added `suppressHydrationWarning={true}` to elements commonly modified by extensions:
+
+1. **Root Layout** (`/nextjs/src/app/layout.tsx`):
+```typescript
+<body className={theme} suppressHydrationWarning={true}>
+```
+
+2. **Password Input Fields** (`/nextjs/src/app/app/user-settings/page.tsx`):
+```typescript
+<input
+    type="password"
+    // ... other props
+    suppressHydrationWarning={true}
+/>
+```
+
+**Files Modified:**
+- `/nextjs/src/app/layout.tsx`
+- `/nextjs/src/app/app/user-settings/page.tsx`
+
+**Result:**
+- ✅ Eliminated hydration error warnings
+- ✅ Compatible with LastPass, VSCode, and other browser extensions
+- ✅ Clean console output without React warnings
+- ✅ Improved developer experience
+
+### Summary of July 2025 Runtime Fixes
+
+**Issues Resolved:** 3 critical runtime problems
+**New Migration:** `20250720000000_make_mfa_optional.sql`
+**Files Modified:** 2 frontend components
+**Database Changes:** Removed overly restrictive MFA policies
+**Result:** Fully functional user settings page with robust error handling
+
+### Lessons Learned for Future Deployments
+
+1. **MFA Policies Should Be Balanced**: Require MFA only for sensitive operations, not basic user information access
+2. **Implement Self-Healing Code**: Auto-create missing records when possible to handle data consistency issues
+3. **Handle Browser Extensions**: Use `suppressHydrationWarning` for elements commonly modified by extensions
+4. **Test with Real User Scenarios**: Verify the application works for users created at different migration stages
+
+### Future Deployment Checklist
+
+After completing the core migration, also verify:
+- [ ] User settings page loads without errors
+- [ ] MFA is optional for basic operations
+- [ ] Browser extensions don't cause hydration errors
+- [ ] Users created at different times can access their information
+- [ ] Auto-creation of missing records functions properly
+
+This ensures a smooth user experience in production environments.

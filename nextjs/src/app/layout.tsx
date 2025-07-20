@@ -17,7 +17,7 @@ export default function RootLayout({
   const theme = "theme-blue";
   return (
     <html lang="en">
-    <body className={theme}>
+    <body className={theme} suppressHydrationWarning={true}>
       {children}
       <Analytics />
       <CookieConsent />

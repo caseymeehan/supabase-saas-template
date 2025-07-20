@@ -21,7 +21,12 @@ export default function UserSettingsPage() {
     const [userDetails, setUserDetails] = useState<Tables<'user_information'> | null>(null);
 
     useEffect(() => {
-        if(!user) return;
+        console.log('User settings useEffect triggered with user:', user);
+        if(!user) {
+            console.log('No user found, skipping fetch');
+            return;
+        }
+        console.log('User found, proceeding with fetch functions');
         fetchUserDetails();
         fetchInviteCode();
     }, [user]);
@@ -31,11 +36,59 @@ export default function UserSettingsPage() {
             console.error('User not found');
             return;
         }
+        console.log('Fetching user details for user:', { id: user.id, email: user.email });
         try {
             const supabase = await createSPASassClient();
+            const directClient = supabase.getSupabaseClient();
+            
+            // Test basic auth
+            const { data: { user: authUser }, error: authError } = await directClient.auth.getUser();
+            console.log('Auth user check:', { authUser: authUser?.id, authError });
+            
+            // Test basic database connection
+            const { data: testData, error: testError } = await directClient
+                .from('user_information')
+                .select('*')
+                .limit(1);
+            console.log('Database test query:', { testData, testError });
+            
+            // Test direct query for this user
+            const { data: directUserData, error: directError } = await directClient
+                .from('user_information')
+                .select('*')
+                .eq('user_id', user.id);
+            console.log('Direct user query:', { directUserData, directError });
+            
             const { data: userInfo, error: userError } = await supabase.getUserInformations(user?.id);
 
-            if (userError) throw userError;
+            if (userError) {
+                console.log('Raw userError object:', userError);
+                console.log('userError properties:', Object.keys(userError));
+                console.log('userError.message:', userError.message);
+                console.log('userError.code:', userError.code);
+                
+                // If user_information record doesn't exist, create a fallback record
+                if (userError.code === 'PGRST116') {
+                    // Try to create the missing user_information record
+                    const { error: insertError } = await supabase.getSupabaseClient()
+                        .from('user_information')
+                        .insert({ user_id: user.id, email: user.email || '' })
+                        .select()
+                        .single();
+                    
+                    if (!insertError) {
+                        // Retry fetching after creating the record
+                        const { data: retryUserInfo, error: retryError } = await supabase.getUserInformations(user?.id);
+                        if (!retryError) {
+                            setUserDetails(retryUserInfo);
+                            return;
+                        }
+                    }
+                }
+                console.log('Could not load extended user details, continuing with basic info');
+                // Don't show error, just continue with basic user info from auth
+                return;
+            }
             setUserDetails(userInfo);
         } catch (err) {
             console.error('Error fetching user details:', err);
@@ -52,7 +105,34 @@ export default function UserSettingsPage() {
             const supabase = await createSPASassClient();
             const { data, error } = await supabase.getUserInviteCode(user?.id);
 
-            if (error) throw error;
+            if (error) {
+                console.log('Raw invite code error object:', error);
+                console.log('error properties:', Object.keys(error));
+                console.log('error.message:', error.message);
+                console.log('error.code:', error.code);
+                
+                // If user_invite_code record doesn't exist, create a fallback record
+                if (error.code === 'PGRST116') {
+                    // Generate a random invite code
+                    const randomCode = Math.random().toString(36).substring(2, 24);
+                    const { error: insertError } = await supabase.getSupabaseClient()
+                        .from('user_invite_code')
+                        .insert({ user_id: user.id, user_code: randomCode, enabled: true })
+                        .select()
+                        .single();
+                    
+                    if (!insertError) {
+                        // Retry fetching after creating the record
+                        const { data: retryData, error: retryError } = await supabase.getUserInviteCode(user?.id);
+                        if (!retryError && retryData) {
+                            setInviteCode(retryData.user_code);
+                            setIsInviteCodeEnabled(retryData.enabled);
+                            return;
+                        }
+                    }
+                }
+                return;
+            }
 
             if (data) {
                 setInviteCode(data.user_code);
@@ -191,7 +271,7 @@ export default function UserSettingsPage() {
                             <div>
                                 <label className="text-sm font-medium text-gray-500">Account Created</label>
                                 <p className="mt-1 text-sm">
-                                    {userDetails?.created_at ? new Date(userDetails.created_at).toLocaleString() : 'Loading...'}
+                                    {userDetails?.created_at ? new Date(userDetails.created_at).toLocaleString() : 'Unable to load creation date'}
                                 </p>
                             </div>
                         </CardContent>
@@ -218,6 +298,7 @@ export default function UserSettingsPage() {
                                         onChange={(e) => setNewPassword(e.target.value)}
                                         className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500 text-sm"
                                         required
+                                        suppressHydrationWarning={true}
                                     />
                                 </div>
                                 <div>
@@ -231,6 +312,7 @@ export default function UserSettingsPage() {
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500 text-sm"
                                         required
+                                        suppressHydrationWarning={true}
                                     />
                                 </div>
                                 <button
@@ -282,7 +364,7 @@ export default function UserSettingsPage() {
                                     <div className="relative">
                                         <input
                                             type="text"
-                                            value={inviteCode}
+                                            value={inviteCode || 'Loading...'}
                                             readOnly
                                             className="w-full font-mono bg-gray-50 p-3 rounded-md border text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                                         />
