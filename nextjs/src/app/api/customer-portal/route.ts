@@ -20,7 +20,7 @@ export async function GET(request: Request) {
         const { data: billingAdmin, error: billingError } = await supabase
             .from('organisation_billing_admin')
             .select('email')
-            .eq('org_id', orgId)
+            .eq('org_id', parseInt(orgId))
             .single();
 
         if (billingError || !billingAdmin) {
